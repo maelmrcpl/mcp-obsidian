@@ -3,6 +3,7 @@ from datetime import date
 from mcp.server import MCPServer
 
 from obsidian_client import ObsidianClient
+from links import backlinks, extract_links, lint, link_name, resolve
 from rules import RuleError, check_content, check_path, format_log_entry, same_content
 
 mcp = MCPServer("Obsidian")
@@ -49,6 +50,32 @@ def list_all(folder: str = "") -> list:
 def search_by_name(name: str) -> list:
     "Trouve les notes dont le chemin contient le texte donné"
     return [f for f in list_all() if name.lower() in f.lower()]
+
+@mcp.tool()
+def get_outgoing_links(path: str) -> list:
+    "Liste les liens [[...]] d'une page, avec le chemin visé et s'il existe"
+    return [
+        {"link": link, "path": resolve(link), "exists": client.exists(resolve(link))}
+        for link in extract_links(client.read_note(path))
+    ]
+
+@mcp.tool()
+def get_backlinks(path: str) -> list:
+    "Liste les pages de wiki/ qui contiennent un lien vers la page donnée (ex: wiki/concepts/agile.md)"
+    if not path.startswith("wiki/") or not path.endswith(".md"):
+        raise RuleError("Donner un chemin de page de wiki/, ex: wiki/concepts/agile.md")
+    found = client.search(link_name(path))
+    candidates = {r["filename"] for r in found if r["filename"].startswith("wiki/") and r["filename"].endswith(".md")}
+    pages = {p: client.read_note(p) for p in candidates if p != path}
+    return backlinks(pages, path)
+
+def load_wiki() -> dict:
+    return {p: client.read_note(p) for p in list_all("wiki/") if p.endswith(".md")}
+
+@mcp.tool()
+def lint_wiki() -> dict:
+    "Contrôle le wiki sans rien modifier : liens cassés, préfixes wiki/, doublons non qualifiés, orphelines, pages absentes de l'index, frontmatter invalide"
+    return lint(load_wiki())
 
 @mcp.tool()
 def create_note(path: str, content: str, confirm_new_folder: bool = False) -> str:

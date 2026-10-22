@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 os.environ.setdefault("KEY", "test")
 
@@ -39,6 +39,15 @@ class FakeClient:
 
     def append_to_note(self, path, content):
         self.files[path] += content
+
+    def list_notes(self, folder=""):
+        prefix = folder.strip("/") + "/" if folder.strip("/") else ""
+        entries = set()
+        for p in self.files:
+            if p.startswith(prefix):
+                rest = p[len(prefix):]
+                entries.add(rest.split("/")[0] + ("/" if "/" in rest else ""))
+        return sorted(entries)
 
     def search(self, query):
         return [
@@ -122,6 +131,14 @@ def test_append_log_keeps_existing_entries(fake):
     assert "] ingest | Ma source\n\nPages created: concepts/scrum\n" in log
 
 
+def test_append_log_when_log_has_no_final_newline(fake):
+    fake.files["wiki/log.md"] = LOG.rstrip("\n")
+    server.append_log("query", "Question", "Réponse archivée")
+    log = fake.files["wiki/log.md"]
+    assert "aucun\n\n## [" in log
+    assert log.startswith(LOG.rstrip("\n"))
+
+
 def test_append_log_invalid_type_refused(fake):
     with pytest.raises(RuleError, match="type de log"):
         server.append_log("blabla", "Titre", "x")
@@ -134,16 +151,43 @@ def test_append_log_secret_refused(fake):
     assert fake.files["wiki/log.md"] == LOG
 
 
-def test_append_log_when_log_has_no_final_newline(fake):
-    fake.files["wiki/log.md"] = LOG.rstrip("\n")
-    server.append_log("query", "Question", "Réponse archivée")
-    log = fake.files["wiki/log.md"]
-    assert "aucun\n\n## [" in log
-    assert log.startswith(LOG.rstrip("\n"))
-
-
 def test_search_notes_is_limited(fake):
     results = server.search_notes("x")
     assert len(results) == 20
     assert len(results[0]["matches"]) == 3
     assert results[0]["path"] == "wiki/p0.md"
+
+
+def test_get_outgoing_links(fake):
+    fake.files["wiki/concepts/a.md"] = PAGE + "[[concepts/kanban]] [[concepts/absente|alias]]"
+    assert server.get_outgoing_links("wiki/concepts/a.md") == [
+        {"link": "concepts/kanban", "path": "wiki/concepts/kanban.md", "exists": True},
+        {"link": "concepts/absente", "path": "wiki/concepts/absente.md", "exists": False},
+    ]
+
+
+def test_get_backlinks_reads_only_search_candidates(fake):
+    fake.files["wiki/concepts/a.md"] = PAGE + "[[concepts/kanban]]"
+    fake.files["wiki/concepts/b.md"] = PAGE + "mention concepts/kanban sans lien"
+    fake.search = lambda q: [
+        {"filename": "wiki/concepts/a.md"},
+        {"filename": "wiki/concepts/b.md"},
+        {"filename": "raw/source.md"},
+    ]
+    assert server.get_backlinks("wiki/concepts/kanban.md") == ["wiki/concepts/a.md"]
+
+
+def test_get_backlinks_outside_wiki_refused(fake):
+    with pytest.raises(RuleError):
+        server.get_backlinks("raw/source.md")
+
+
+def test_lint_wiki_reads_all_pages_and_changes_nothing(fake):
+    fake.files["wiki/index.md"] = "# Index\n[[concepts/kanban]]\n"
+    before = dict(fake.files)
+    report = server.lint_wiki()
+    assert set(report) == {
+        "liens_casses", "liens_prefixe_wiki", "doublons_non_qualifies",
+        "orphelines", "absentes_de_lindex", "frontmatter_invalide",
+    }
+    assert fake.files == before

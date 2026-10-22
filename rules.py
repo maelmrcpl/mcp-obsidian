@@ -28,7 +28,7 @@ def check_secrets(text: str):
     if SECRETS.search(text):
         raise RuleError("Le contenu ressemble à un secret, écriture refusée")
 
-def check_content(content: str):
+def check_frontmatter(content: str):
     m = re.match(r"---\r?\n(.*?)\r?\n---", content, re.S)
     if not m:
         raise RuleError("Frontmatter manquant")
@@ -38,6 +38,9 @@ def check_content(content: str):
         raise RuleError(f"Champs manquants : {', '.join(missing)}")
     if fm["type"].strip() not in TYPES:
         raise RuleError(f"type invalide, attendu : {sorted(TYPES)}")
+
+def check_content(content: str):
+    check_frontmatter(content)
     if "[[wiki/" in content:
         raise RuleError("Lien avec préfixe wiki/ interdit")
     check_secrets(content)
