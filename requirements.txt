@@ -2,3 +2,4 @@ mcp[cli]
 uv
 httpx
 python-dotenv
+pytest
