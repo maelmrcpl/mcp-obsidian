@@ -4,12 +4,15 @@ from urllib.parse import quote
 
 import httpx
 from dotenv import load_dotenv
+from mcp.server.mcpserver.exceptions import ToolError
 
 load_dotenv(Path(__file__).parent / ".env")
 
 
-class ObsidianError(Exception):
-    pass
+class ObsidianError(ToolError):
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 class ObsidianClient:
@@ -44,13 +47,31 @@ class ObsidianClient:
         if response.status_code == 401:
             raise ObsidianError("Clé d'API refusée (401)")
         if response.status_code == 404:
-            raise ObsidianError("Note ou dossier introuvable (404)")
+            raise ObsidianError("Note ou dossier introuvable (404)", status=404)
         if response.is_error:
             raise ObsidianError(f"Erreur Obsidian {response.status_code}: {response.text}")
         return response
 
     def status(self) -> dict:
         return self._request("GET", "/").json()
+
+    def exists(self, path: str) -> bool:
+        try:
+            self.read_note(path)
+        except ObsidianError as e:
+            if e.status == 404:
+                return False
+            raise
+        return True
+
+    def folder_exists(self, folder: str) -> bool:
+        try:
+            self.list_notes(folder)
+        except ObsidianError as e:
+            if e.status == 404:
+                return False
+            raise
+        return True
 
     def list_notes(self, folder: str = "") -> list[str]:
         url = self._vault_path(folder).rstrip("/") + "/" if folder else "/vault/"
