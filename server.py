@@ -104,9 +104,9 @@ def update_note(path: str, content: str, expected_content: str) -> str:
 def append_log(type: str, title: str, details: str) -> str:
     "Ajoute une entrée à la fin de wiki/log.md. type : ingest, query, lint ou maintenance. details : corps de l'entrée en texte libre"
     entry = format_log_entry(type, title, details, date.today().isoformat())
-    if not client.read_note("wiki/log.md").endswith("\n"):
-        entry = "\n" + entry
-    client.append_to_note("wiki/log.md", entry)
+    log = client.read_note("wiki/log.md")
+    trailing = len(log) - len(log.rstrip("\n"))
+    client.append_to_note("wiki/log.md", "\n" * max(0, 2 - trailing) + entry)
     return f"Entrée {type} ajoutée au log"
 
 @mcp.resource("greeting://{name}")

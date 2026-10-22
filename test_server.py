@@ -139,6 +139,20 @@ def test_append_log_when_log_has_no_final_newline(fake):
     assert log.startswith(LOG.rstrip("\n"))
 
 
+@pytest.mark.parametrize("trailing_newlines", [0, 1, 2, 3])
+def test_append_log_always_leaves_exactly_one_blank_line(fake, trailing_newlines):
+    base = LOG.rstrip("\n")
+    fake.files["wiki/log.md"] = base + "\n" * trailing_newlines
+    server.append_log("query", "Question", "Réponse archivée")
+    log = fake.files["wiki/log.md"]
+    before = log[: log.rindex("## [")]
+    if trailing_newlines <= 2:
+        assert before == base + "\n\n"
+    else:
+        assert before == base + "\n\n\n"
+    assert log.endswith("] query | Question\n\nRéponse archivée\n")
+
+
 def test_append_log_invalid_type_refused(fake):
     with pytest.raises(RuleError, match="type de log"):
         server.append_log("blabla", "Titre", "x")

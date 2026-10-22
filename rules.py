@@ -53,7 +53,7 @@ def format_log_entry(type: str, title: str, details: str, date: str) -> str:
     if not title.strip() or "\n" in title:
         raise RuleError("Le titre doit tenir sur une ligne et ne pas être vide")
     check_secrets(details)
-    return f"\n## [{date}] {type} | {title.strip()}\n\n{details.strip()}\n"
+    return f"## [{date}] {type} | {title.strip()}\n\n{details.strip()}\n"
 
 def same_content(a: str, b: str) -> bool:
     norm = lambda s: s.replace("\r\n", "\n").strip()
