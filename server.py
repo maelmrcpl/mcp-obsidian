@@ -82,6 +82,14 @@ def append_log(type: str, title: str, details: str) -> str:
     client.append_to_note("wiki/log.md", entry)
     return f"Entrée {type} ajoutée au log"
 
+@mcp.resource("greeting://{name}")
+def greeting(name: str) -> str:
+    return f"{name}"
+
+@mcp.prompt()
+def summarize(text: str) -> str:
+    return f"Summarize this text in one or two sentences:\n\n--\n\n{text}"
+
 def main():
     mcp.run()
 
