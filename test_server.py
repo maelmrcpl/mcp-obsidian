@@ -40,6 +40,12 @@ class FakeClient:
     def append_to_note(self, path, content):
         self.files[path] += content
 
+    def search(self, query):
+        return [
+            {"filename": f"wiki/p{i}.md", "score": -1, "matches": [{"context": f"c{j}"} for j in range(5)]}
+            for i in range(30)
+        ]
+
 
 @pytest.fixture
 def fake(monkeypatch):
@@ -126,3 +132,18 @@ def test_append_log_secret_refused(fake):
     with pytest.raises(RuleError, match="secret"):
         server.append_log("query", "Titre", "Authorization: Bearer abc")
     assert fake.files["wiki/log.md"] == LOG
+
+
+def test_append_log_when_log_has_no_final_newline(fake):
+    fake.files["wiki/log.md"] = LOG.rstrip("\n")
+    server.append_log("query", "Question", "Réponse archivée")
+    log = fake.files["wiki/log.md"]
+    assert "aucun\n\n## [" in log
+    assert log.startswith(LOG.rstrip("\n"))
+
+
+def test_search_notes_is_limited(fake):
+    results = server.search_notes("x")
+    assert len(results) == 20
+    assert len(results[0]["matches"]) == 3
+    assert results[0]["path"] == "wiki/p0.md"

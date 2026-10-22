@@ -10,8 +10,16 @@ client = ObsidianClient()
 
 @mcp.tool()
 def search_notes(query: str) -> list:
-    "Recherche du texte dans les notes du vault"
-    return client.search(query)
+    "Recherche du texte dans les notes du vault (20 résultats max, 3 extraits chacun)"
+    results = client.search(query)[:20]
+    return [
+        {
+            "path": r["filename"],
+            "score": r.get("score"),
+            "matches": [m["context"] for m in r.get("matches", [])[:3]],
+        }
+        for r in results
+    ]
 
 @mcp.tool()
 def read_notes(path: str) -> str:
@@ -69,16 +77,10 @@ def update_note(path: str, content: str, expected_content: str) -> str:
 def append_log(type: str, title: str, details: str) -> str:
     "Ajoute une entrée à la fin de wiki/log.md. type : ingest, query, lint ou maintenance. details : corps de l'entrée en texte libre"
     entry = format_log_entry(type, title, details, date.today().isoformat())
+    if not client.read_note("wiki/log.md").endswith("\n"):
+        entry = "\n" + entry
     client.append_to_note("wiki/log.md", entry)
     return f"Entrée {type} ajoutée au log"
-
-@mcp.resource("greeting://{name}")
-def greeting(name: str) -> str:
-    return f"{name}"
-
-@mcp.prompt()
-def summarize(text: str) -> str:
-    return f"Summarize this text in one or two sentences:\n\n--\n\n{text}"
 
 def main():
     mcp.run()
