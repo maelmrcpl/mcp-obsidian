@@ -3,8 +3,12 @@
   "mcp": {
     "obsidian": {
       "type": "local",
-      "command": ["C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\.venv\\Scripts\\python.exe", "server.py"],
-      "enabled": true
+      "command": [
+        "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\.venv\\Scripts\\python.exe",
+        "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\server.py"
+      ],
+      "enabled": true,
+      "timeout": 10000
     }
   }
 }
