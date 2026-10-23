@@ -117,6 +117,49 @@ def test_update_ignores_line_endings(fake):
     assert fake.files["wiki/concepts/kanban.md"] == new
 
 
+def test_update_index_without_frontmatter_allowed(fake):
+    fake.files["wiki/index.md"] = "# Wiki Index\n- [[concepts/kanban]]\n"
+    new = "# Wiki Index\n- [[concepts/kanban]]\n- [[concepts/scrum]]\n"
+    server.update_note("wiki/index.md", new, "# Wiki Index\n- [[concepts/kanban]]\n")
+    assert fake.files["wiki/index.md"] == new
+
+
+@pytest.mark.parametrize("name", ["overview", "glossary"])
+def test_update_overview_and_glossary_with_their_own_type_allowed(fake, name):
+    path = f"wiki/{name}.md"
+    old = PAGE.replace("type: concept", f"type: {name}")
+    new = old.replace("Corps.", "Corps modifié.")
+    fake.files[path] = old
+    server.update_note(path, new, old)
+    assert fake.files[path] == new
+
+
+def test_base_pages_still_checked_for_prefix_links_and_secrets(fake):
+    fake.files["wiki/index.md"] = "# Wiki Index\n"
+    with pytest.raises(RuleError, match="wiki/"):
+        server.update_note("wiki/index.md", "# Index\n[[wiki/concepts/x]]\n", "# Wiki Index\n")
+    with pytest.raises(RuleError, match="secret"):
+        server.update_note("wiki/index.md", "# Index\nBearer abc123\n", "# Wiki Index\n")
+    assert fake.files["wiki/index.md"] == "# Wiki Index\n"
+
+
+def test_update_log_refused_even_with_matching_expected_content(fake):
+    with pytest.raises(RuleError, match="append_log"):
+        server.update_note("wiki/log.md", "# Wiki Log\n", LOG)
+    assert fake.files["wiki/log.md"] == LOG
+
+
+def test_ordinary_page_still_requires_frontmatter(fake):
+    with pytest.raises(RuleError, match="Frontmatter"):
+        server.update_note("wiki/concepts/kanban.md", "plus de frontmatter", PAGE)
+    assert fake.files["wiki/concepts/kanban.md"] == PAGE
+
+
+def test_create_note_still_requires_frontmatter_for_new_pages(fake):
+    with pytest.raises(RuleError, match="Frontmatter"):
+        server.create_note("wiki/concepts/nouvelle.md", "# Sans frontmatter\n")
+
+
 def test_update_in_raw_refused(fake):
     with pytest.raises(RuleError, match="raw/"):
         server.update_note("raw/source.md", PAGE, "intouchable")

@@ -24,6 +24,9 @@ TYPES = {"source", "feature", "product", "persona", "concept", "style", "analysi
 FIELDS = ["title", "type", "created", "updated", "sources", "tags"]
 SECRETS = re.compile(r"authorization\s*:|bearer\s+\S+|token\s*=|session_?id\s*=", re.I)
 
+BASE_PAGES = {"wiki/index.md", "wiki/log.md", "wiki/overview.md", "wiki/glossary.md"}
+APPEND_ONLY = {"wiki/log.md"}
+
 def check_secrets(text: str):
     if SECRETS.search(text):
         raise RuleError("Le contenu ressemble à un secret, écriture refusée")
@@ -39,11 +42,17 @@ def check_frontmatter(content: str):
     if fm["type"].strip() not in TYPES:
         raise RuleError(f"type invalide, attendu : {sorted(TYPES)}")
 
-def check_content(content: str):
-    check_frontmatter(content)
+def check_content(content: str, path: str = ""):
+    "Les pages de base (index, overview, glossary...) ont leur propre format : pas de contrôle de frontmatter"
+    if path.replace("\\", "/") not in BASE_PAGES:
+        check_frontmatter(content)
     if "[[wiki/" in content:
         raise RuleError("Lien avec préfixe wiki/ interdit")
     check_secrets(content)
+
+def check_not_append_only(path: str):
+    if path.replace("\\", "/") in APPEND_ONLY:
+        raise RuleError(f"{path} est en ajout seul : utiliser append_log")
 
 LOG_TYPES = {"ingest", "query", "lint", "maintenance"}
 

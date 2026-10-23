@@ -1,8 +1,6 @@
 import re
 
-from rules import RuleError, check_frontmatter
-
-BASE_PAGES = {"wiki/index.md", "wiki/log.md", "wiki/overview.md", "wiki/glossary.md"}
+from rules import BASE_PAGES, RuleError, check_frontmatter
 INDEX = "wiki/index.md"
 LINK = re.compile(r"!?\[\[([^\]\n]+)\]\]")
 

@@ -4,7 +4,7 @@ from mcp.server import MCPServer
 
 from obsidian_client import ObsidianClient
 from links import backlinks, extract_links, lint, link_name, resolve
-from rules import RuleError, check_content, check_path, format_log_entry, same_content
+from rules import RuleError, check_content, check_not_append_only, check_path, format_log_entry, same_content
 
 mcp = MCPServer("Obsidian")
 client = ObsidianClient()
@@ -92,9 +92,10 @@ def create_note(path: str, content: str, confirm_new_folder: bool = False) -> st
 
 @mcp.tool()
 def update_note(path: str, content: str, expected_content: str) -> str:
-    "Remplace une page de wiki/. expected_content doit être le contenu actuel (à relire juste avant), sinon l'écriture est refusée"
+    "Remplace une page de wiki/. expected_content doit être le contenu actuel (à relire juste avant), sinon l'écriture est refusée. Les pages de base (index, overview, glossary) n'ont pas de contrôle de frontmatter ; log.md est en ajout seul (utiliser append_log)"
     check_path(path)
-    check_content(content)
+    check_not_append_only(path)
+    check_content(content, path)
     if not same_content(client.read_note(path), expected_content):
         raise RuleError(f"{path} a changé depuis la dernière lecture : la relire avant de la modifier")
     client.create_note(path, content)
