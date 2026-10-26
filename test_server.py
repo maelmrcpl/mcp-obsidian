@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 os.environ.setdefault("KEY", "test")
 
@@ -242,7 +242,7 @@ def test_get_backlinks_outside_wiki_refused(fake):
 def test_prompts_are_registered_with_expected_names():
     import asyncio
     prompts = asyncio.run(server.mcp.list_prompts())
-    assert {"query", "lint", "suggest_links", "recap"} <= {p.name for p in prompts}
+    assert {"ingest", "query", "lint", "suggest_links", "recap"} <= {p.name for p in prompts}
 
 
 def test_suggest_links_prompt_contains_path_and_asks_first():
@@ -261,16 +261,22 @@ def test_recap_prompt_is_read_only_and_has_default_period():
     assert "update_note" not in text and "create_note" not in text
 
 
-def test_query_prompt_contains_question_and_tools():
+def test_ingest_prompt_contains_source_and_loads_skill():
+    text = server.ingest("raw/MCP.md")
+    assert "raw/MCP.md" in text
+    assert "skill `ingest`" in text
+
+
+def test_query_prompt_contains_question_and_loads_skill():
     text = server.query("Qu'est-ce que Kanban ?")
     assert "Qu'est-ce que Kanban ?" in text
-    for tool in ("read_many_notes", "create_note", "append_log"):
-        assert tool in text
+    assert "skill `query`" in text
+    assert "sans mon accord" in text
 
 
-def test_lint_prompt_asks_before_applying():
+def test_lint_prompt_loads_skill_and_asks_before_applying():
     text = server.lint_prompt()
-    assert "lint_wiki" in text and "update_note" in text and "append_log" in text
+    assert "skill `lint`" in text
     assert "sans mon accord" in text
 
 
