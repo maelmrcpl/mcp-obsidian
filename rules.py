@@ -18,7 +18,7 @@ def check_path(path: str):
         raise RuleError("Une page doit finir par .md")
     file = path.split("/")[-1]
     if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*\.md", file):
-        raise RuleError("Nom en kebab-base attendu : exemple-fichier.md")
+        raise RuleError("Nom en kebab-case attendu : exemple-fichier.md")
 
 TYPES = {"source", "feature", "product", "persona", "concept", "style", "analysis", "tool"}
 FIELDS = ["title", "type", "created", "updated", "sources", "tags"]

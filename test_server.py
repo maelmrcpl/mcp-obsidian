@@ -215,6 +215,21 @@ def test_search_notes_is_limited(fake):
     assert results[0]["path"] == "wiki/p0.md"
 
 
+def test_read_many_notes_reads_first_20_and_warns(fake):
+    paths = [f"wiki/p{i}.md" for i in range(22)]
+    for p in paths:
+        fake.files[p] = PAGE
+    result = server.read_many_notes(paths)
+    assert [p for p in result if p != "_avertissement"] == paths[:20]
+    assert "2 chemin(s) ignoré(s)" in result["_avertissement"]
+    assert paths[20] in result["_avertissement"]
+
+
+def test_read_many_notes_no_warning_up_to_20(fake):
+    result = server.read_many_notes(["wiki/log.md", "wiki/concepts/kanban.md"])
+    assert result == {"wiki/log.md": LOG, "wiki/concepts/kanban.md": PAGE}
+
+
 def test_get_outgoing_links(fake):
     fake.files["wiki/concepts/a.md"] = PAGE + "[[concepts/kanban]] [[concepts/absente|alias]]"
     assert server.get_outgoing_links("wiki/concepts/a.md") == [
@@ -242,7 +257,7 @@ def test_get_backlinks_outside_wiki_refused(fake):
 def test_prompts_are_registered_with_expected_names():
     import asyncio
     prompts = asyncio.run(server.mcp.list_prompts())
-    assert {"ingest", "query", "lint", "suggest_links", "recap"} <= {p.name for p in prompts}
+    assert {"ingest", "query", "lint", "suggest_links", "recap", "archive_answer"} <= {p.name for p in prompts}
 
 
 def test_suggest_links_prompt_contains_path_and_asks_first():
@@ -278,6 +293,13 @@ def test_lint_prompt_loads_skill_and_asks_before_applying():
     text = server.lint_prompt()
     assert "skill `lint`" in text
     assert "sans mon accord" in text
+
+
+def test_archive_answer_prompt_contains_title_and_asks_first():
+    text = server.archive_answer("Kanban vs Scrum")
+    assert "Kanban vs Scrum" in text
+    assert "{title}" not in text
+    assert "avant mon accord" in text
 
 
 def test_lint_wiki_reads_all_pages_and_changes_nothing(fake):

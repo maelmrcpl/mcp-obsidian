@@ -32,6 +32,11 @@ def test_path_refused(path):
         check_path(path)
 
 
+def test_path_bad_filename_message_says_kebab_case():
+    with pytest.raises(ValueError, match="kebab-case"):
+        check_path("wiki/concepts/Mon Concept.md")
+
+
 def test_content_valid():
     check_content(VALID)
 
