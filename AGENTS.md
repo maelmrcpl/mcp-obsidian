@@ -4,6 +4,12 @@ Consignes de comportement pour réduire les erreurs courantes des LLM en program
 
 **Compromis :** ces consignes privilégient la prudence plutôt que la vitesse.
 
+## Environnement
+
+- Windows, terminal PowerShell 5.1 en mode restreint (Constrained Language Mode) : n'utilise que des cmdlets. Pas d'appel de méthode statique .NET (`[IO.File]::…`), pas de `New-Object`, pas de `Add-Type`. Un script qui doit durer s'écrit dans `scripts/`.
+- Fichiers en UTF-8. Chemins Windows avec `\`, sauf dans les fichiers de configuration multi-plateformes.
+- Ne lis, n'affiche et ne copie jamais le contenu d'un `.env` ni aucun secret (clés, jetons, mots de passe). `opencode.json` bloque déjà l'accès, ne cherche pas à le contourner.
+
 ## 1. Réfléchir avant de coder
 
 **Ne pas supposer. Ne pas cacher la confusion. Exposer les compromis.**
@@ -18,7 +24,6 @@ Avant d'implémenter :
 
 **Le minimum de code qui résout le problème. Rien de spéculatif.**
 
-- Lisibilité et maintenance priment sur la sur-ingénierie (voir `RULES.md`, « Code et Développement »).
 - Aucune fonctionnalité au-delà de ce qui est demandé.
 - Aucune abstraction pour du code à usage unique.
 - Aucune « flexibilité » ou « configurabilité » non demandée.
@@ -47,6 +52,8 @@ Le test : chaque ligne modifiée doit se rattacher directement à la demande de 
 
 **Définir des critères de succès. Boucler jusqu'à vérification.**
 
+Les commandes de test, de lint et de build du projet sont dans `memoire/principes.md`. Lance-les avant de conclure une tâche de code, et dis lesquelles tu as lancées.
+
 Transforme les tâches en objectifs vérifiables :
 - « Ajouter une validation » → « Écrire des tests pour les entrées invalides, puis les faire passer »
 - « Corriger le bug » → « Écrire un test qui le reproduit, puis le faire passer »
@@ -73,8 +80,10 @@ Des critères de succès solides permettent de boucler seul. Des critères faibl
 
 ## 5. Mémoire du projet
 
-La mémoire du projet (le code du serveur MCP uniquement) est dans `memoire/`. `memoire/ROUTEUR.md` est chargé en contexte à chaque session (via `instructions` dans `opencode.json`) et indique, pour chaque fichier de mémoire, quand le lire.
+La mémoire du projet est dans `memoire/`. `memoire/ROUTEUR.md` est chargé en contexte à chaque session (via `instructions` dans `opencode.json`) et indique, pour chaque fichier de mémoire, quand le lire. Il est **généré** : ne pas le modifier à la main.
 
 - Avant de modifier du code ou de répondre sur le code (lire la mémoire reste possible avant de poser une question), consulte la colonne « Quand le lire » de `memoire/ROUTEUR.md` et lis les fichiers qui correspondent à la tâche ; si aucun ne correspond, lis `memoire/architecture.md`.
-- Si tu ajoutes, renommes ou supprimes un fichier de `memoire/`, mets à jour les tables de `memoire/ROUTEUR.md`.
+- Chaque fichier de `memoire/` commence par un en-tête `quand_lire` (quand le lire) et `couvre` (fichiers de code décrits). Modèle : `memoire/_modele.md`.
+- Si tu ajoutes, renommes ou supprimes un fichier de `memoire/`, ou si tu modifies un en-tête, régénère le routeur : `.\scripts\routeur.ps1`.
+- Avant de terminer une tâche qui touche à `memoire/` ou qui ajoute un fichier au projet, lance `.\scripts\routeur.ps1 -Verifier`. Il échoue si un fichier suivi par Git n'est cité dans aucun `couvre` (ajoute-le au `couvre` du fichier de mémoire concerné, ou à `memoire/_ignore.txt` s'il n'a pas besoin d'être documenté) ou s'il contient un secret probable. Ses avertissements (mémoire plus ancienne que le code qu'elle couvre, budget de contexte) ne bloquent pas : traite-les ou signale-les à l'utilisateur.
 - Un fait de la mémoire qui contredit le code est une erreur de la mémoire : corrige-la et signale-la à l'utilisateur.

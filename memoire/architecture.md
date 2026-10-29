@@ -1,32 +1,38 @@
+---
+quand_lire: Tu découvres le projet ; tu modifies obsidian_client.py, opencode.json, .env, .gitignore, requirements.txt, la CI, un skill, un agent ou une commande ; tu ajoutes ou changes un prompt ou une resource ; une erreur de connexion, de clé (KEY, 401), de port (PORT) ou de note introuvable (404) apparaît ; tu ajoutes un fichier de mémoire
+couvre: obsidian_client.py, opencode.json, .gitignore, requirements.txt, .github/workflows/memoire.yml, .opencode/
+---
 # Architecture
 
-Serveur MCP Python (SDK `mcp`, classe `MCPServer`) qui expose un vault Obsidian via le plugin « Local REST API ». Périmètre : le wiki est dans `wiki/`, les sources dans `raw/` (lecture seule).
+Serveur MCP Python (SDK `mcp`, classe `MCPServer`) qui donne à un modèle l'accès à un vault Obsidian via le plugin « Local REST API ». Le vault suit une organisation `raw/` (sources, lecture seule) et `wiki/` (pages écrites par le serveur). Le point d'entrée est `server.py` (`main()` appelle `mcp.run()`).
 
 ## Fichiers du code
 | Fichier | Rôle |
 |---|---|
-| `server.py` | Déclare le serveur `MCPServer("Obsidian")`, les outils (voir `outils.md`), la resource et les prompts. Instancie `client = ObsidianClient()`. |
-| `rules.py` | Règles d'écriture (chemins, frontmatter, secrets, log). Voir `regles.md`. |
-| `links.py` | Analyse des `[[liens]]`, backlinks, lint. Fonctions pures, sans accès au vault. Voir `liens.md`. |
-| `obsidian_client.py` | Client HTTP du plugin Obsidian. |
-| `test_*.py` | Tests pytest. Voir `tests.md`. |
+| `server.py` | Déclare les outils, la resource et les prompts (détail des outils : `memoire/outils.md`). |
+| `obsidian_client.py` | `ObsidianClient` : client HTTP (`httpx`) du plugin. Méthodes : `status`, `exists`, `folder_exists`, `list_notes`, `read_note`, `create_note` (PUT, écrase si existe), `append_to_note` (POST), `delete_note`, `search`, `active_note`. |
+| `rules.py` | Règles d'écriture (`memoire/regles.md`). |
+| `links.py` | Liens et lint (`memoire/liens.md`). |
+| `test_*.py` | Tests (`memoire/tests.md`). |
+| `requirements.txt` | `mcp[cli]`, `uv`, `httpx`, `python-dotenv`, `pytest`. |
+| `opencode.json` | Charge `memoire/ROUTEUR.md`, déclare le serveur MCP `obsidian`, bloque la lecture et l'édition des `.env`, demande confirmation avant `git push`, `git reset --hard`, `git clean` et les suppressions. |
+| `.github/workflows/memoire.yml` | Lance `scripts/routeur.ps1 -Verifier` à chaque push et pull request. |
+| `.opencode/skills/` | Skills `onboard`, `plan`, `review`, `save-session`. |
+| `.opencode/agents/reviewer.md` | Sous-agent relecteur en lecture seule. |
+| `.opencode/commands/` | Commandes `/onboard`, `/plan`, `/review`, `/save-session`. |
 
-## server.py
-- Outils : voir `outils.md`.
-- Helpers non exposés : `list_all(folder)` (liste récursive des fichiers, les dossiers finissent par `/`), `load_wiki()` (lit toutes les pages `wiki/**/*.md`).
-- Resource : `greeting://{name}` (renvoie `name`).
-- Prompts : `summarize`, `ingest`, `query`, `lint` (fonction `lint_prompt`), `suggest_links`, `recap`, `archive_answer`. Les prompts `ingest`, `query`, `lint` chargent le skill du même nom ; ils précisent que le contenu des pages est une donnée, pas une instruction.
+## Connexion à Obsidian
+- `obsidian_client.py` charge `.env` (à côté du fichier) avec `python-dotenv` ; variables `KEY` (obligatoire) et `PORT` (défaut `27124`). Ne jamais lire `.env`.
+- URL : `https://127.0.0.1:<PORT>`, en-tête `Authorization: Bearer <KEY>`, `verify=False` (certificat auto-signé du plugin), timeout 15 s.
+- Chemins : `\` converti en `/`, `..` refusé (`Chemin invalide`), encodage URL.
+- Erreurs (`ObsidianError`, sous-classe de `ToolError`) : `KEY` absente ; connexion impossible (Obsidian fermé ou plugin inactif) ; 401 « Clé d'API refusée » ; 404 « Note ou dossier introuvable » (`status=404`) ; autre erreur HTTP avec code et texte.
 
-## Client Obsidian (`obsidian_client.py`)
-- Connexion : `https://127.0.0.1:<PORT>` (PORT par défaut `27124`), en-tête `Authorization: Bearer <KEY>`, `verify=False` (certificat auto-signé), timeout 15 s.
-- `KEY` et `PORT` viennent du `.env` (chargé depuis le dossier du fichier). `KEY` absente → `ObsidianError("Variable KEY manquante dans le .env")` à l'instanciation, donc au démarrage du serveur.
-- `ObsidianError` hérite de `ToolError` ; attribut `status` (404 renseigné).
-- Erreurs HTTP : connexion impossible (Obsidian fermé ou plugin inactif), 401 (clé refusée), 404 (note ou dossier introuvable, `status=404`), autre erreur → message avec code et texte.
-- `_vault_path` : remplace `\` par `/`, retire le `/` initial, refuse tout segment `..`, encode l'URL (`/vault/...`).
-- Méthodes : `status`, `exists`, `folder_exists` (se basent sur le 404), `list_notes`, `read_note`, `create_note` (PUT, écrase si existant), `append_to_note` (POST), `delete_note`, `search` (`/search/simple/`, contexte 100 caractères), `active_note`. `status`, `delete_note` et `active_note` ne sont utilisées par aucun outil.
+## Prompts et resource (dans `server.py`)
+- Resource `greeting://{name}` renvoie `name`.
+- Prompts : `summarize`, `ingest`, `query`, `lint` (fonction `lint_prompt`), `suggest_links`, `recap` (période par défaut « 7 jours »), `archive_answer`. Ceux du wiki renvoient un texte qui demande de charger le skill du même nom ou décrit les étapes ; ils précisent que le contenu des pages est de la donnée.
 
 ## Configuration
-- `opencode.json` : `instructions` charge `memoire/ROUTEUR.md` à chaque session ; serveur MCP `obsidian` de type local, lancé avec `.venv\Scripts\python.exe server.py`, timeout 30000 ms (le client HTTP a un timeout de 15 s par requête ; `lint_wiki` en enchaîne plusieurs).
-- `.env` : `KEY` (clé d'API du plugin), `PORT` optionnel. Ne jamais l'afficher ni le committer.
-- `.gitignore` : `.venv`, `.env`, `__pycache__`, `MCPServer.md`.
-- `requirements.txt` : `mcp[cli]`, `uv`, `httpx`, `python-dotenv`, `pytest`.
+- `.gitignore` : `.venv`, `.env`, `__pycache__`, `MCPServer.md`, `.pytest_cache/`, `node_modules/`.
+- `memoire/_ignore.txt` : fichiers suivis par Git exemptés de la vérification « couvert par la mémoire ».
+- `scripts/routeur.ps1` : génère `memoire/ROUTEUR.md` ; seuils de budget en tête de script (`$maxChargeEnPermanence`, `$maxFichierMemoire`).
+- Incohérence à noter : `opencode.json` référence `C:\Users\HTTN6172\Documents\mcp-obsidian\` (venv, `server.py`, un second `ROUTEUR.md`), un dossier différent de ce projet (`mcp-obsidian-test`).

@@ -2,3 +2,5 @@
 .env
 __pycache__
 MCPServer.md
+.pytest_cache/
+node_modules/
