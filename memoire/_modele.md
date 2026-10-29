@@ -1,6 +1,7 @@
 ---
 quand_lire: Décris en une phrase les situations où ce fichier doit être lu (fichier modifié, erreur rencontrée, question posée)
 couvre: chemin/vers/fichier1, chemin/vers/fichier2, ...
+verifie: AAAA-MM-JJ
 ---
 # Titre du fichier de mémoire
 

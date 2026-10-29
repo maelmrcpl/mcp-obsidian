@@ -1,7 +1,8 @@
 ---
-description: Initialiser memoire/ d'un projet existant à partir de son code
+description: Créer (create) ou mettre à jour (update) la mémoire memoire/ d'un projet. Usage /onboard create ou /onboard update, suivi d'un contexte optionnel.
 ---
 
-Contexte supplémentaire de l'utilisateur : $ARGUMENTS
+Mode demandé : $1
+Contexte supplémentaire de l'utilisateur : $2
 
 Charge le skill `onboard` et suis-le pour ce projet.
