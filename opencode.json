@@ -1,17 +1,85 @@
-{
-  "$schema": "https://opencode.ai/config.json",
-  "instructions": [
-    "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\memoire\\ROUTEUR.md"
-  ],
-  "mcp": {
-    "obsidian": {
-      "type": "local",
-      "command": [
-        "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\.venv\\Scripts\\python.exe",
-        "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\server.py"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    }
-  }
+﻿{
+    "$schema":  "https://opencode.ai/config.json",
+    "instructions":  [
+                         "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\memoire\\ROUTEUR.md",
+                         "memoire/ROUTEUR.md"
+                     ],
+    "mcp":  {
+                "obsidian":  {
+                                 "type":  "local",
+                                 "command":  [
+                                                 "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\.venv\\Scripts\\python.exe",
+                                                 "C:\\Users\\HTTN6172\\Documents\\mcp-obsidian\\server.py"
+                                             ],
+                                 "enabled":  true,
+                                 "timeout":  30000
+                             }
+            },
+    "permissions":  [
+                        {
+                            "action":  "read",
+                            "resource":  "*.env",
+                            "effect":  "deny"
+                        },
+                        {
+                            "action":  "read",
+                            "resource":  "*.env.*",
+                            "effect":  "deny"
+                        },
+                        {
+                            "action":  "read",
+                            "resource":  "*.env.example",
+                            "effect":  "allow"
+                        },
+                        {
+                            "action":  "edit",
+                            "resource":  "*.env",
+                            "effect":  "deny"
+                        },
+                        {
+                            "action":  "edit",
+                            "resource":  "*.env.*",
+                            "effect":  "deny"
+                        },
+                        {
+                            "action":  "edit",
+                            "resource":  "*.env.example",
+                            "effect":  "allow"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "git push *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "git reset --hard *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "git clean *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "rm *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "del *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "rmdir *",
+                            "effect":  "ask"
+                        },
+                        {
+                            "action":  "shell",
+                            "resource":  "Remove-Item *",
+                            "effect":  "ask"
+                        }
+                    ]
 }
