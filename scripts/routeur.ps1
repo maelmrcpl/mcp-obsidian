@@ -3,7 +3,8 @@
 #   .\scripts\routeur.ps1 -Verifier   contrôle la cohérence sans rien écrire (code retour 1 si erreur) :
 #     erreurs       : routeur à jour, chemins 'couvre' existants, JSON de configuration valide,
 #                     fichiers Git non couverts, secrets probables
-#     avertissements : mémoire plus ancienne que le code qu'elle couvre, budget de contexte dépassé
+#     avertissements : mémoire plus ancienne que le code qu'elle couvre (champ 'verifie: AAAA-MM-JJ' de
+#                      l'en-tête, sinon date du dernier commit du fichier), budget de contexte dépassé
 # Uniquement des cmdlets : compatible avec le mode PowerShell restreint (Constrained Language Mode).
 param(
     [string]$Racine = (Split-Path $PSScriptRoot -Parent),
@@ -30,15 +31,16 @@ function Lire-EnTete($fichier) {
     return $valeurs
 }
 
-function Date-Commit($chemin) {
-    $date = git -C $Racine log -1 --format=%ct -- $chemin 2>$null
-    if ($LASTEXITCODE -eq 0 -and $date) { return [long]$date }
-    return 0
+function Jour-Commit($chemin) {
+    $jour = git -C $Racine log -1 --format=%cs -- $chemin 2>$null
+    if ($LASTEXITCODE -eq 0 -and $jour) { return "$jour".Trim() }
+    return ""
 }
 
 $lignes = @()
 $couverts = @()
 $couvertParFichier = @{}
+$verifieParFichier = @{}
 $fichiers = Get-ChildItem $dossier -Filter *.md | Where-Object { $_.Name -ne "ROUTEUR.md" -and -not $_.Name.StartsWith("_") } | Sort-Object Name
 
 if (-not (Test-Path (Join-Path $dossier "architecture.md"))) {
@@ -65,6 +67,7 @@ foreach ($f in $fichiers) {
         }
     }
     $couvertParFichier[$f.Name] = $couverts_fichier
+    $verifieParFichier[$f.Name] = $entete["verifie"]
     $lignes += "| ``memoire/$($f.Name)`` | $($entete['quand_lire'] -replace '\|', '\|') |"
 }
 
@@ -115,7 +118,7 @@ if ($Verifier) {
         $motifs = Get-Content $fichierIgnore -Encoding UTF8 | Where-Object { $_.Trim() -and -not $_.StartsWith("#") }
     }
     foreach ($suivi in $suivis) {
-        $ignore = $false
+        $ignore = ($suivi -eq ".harness-base")
         foreach ($motif in $motifs) { if ($suivi -like $motif.Trim()) { $ignore = $true } }
         foreach ($c in $couverts) { if ($suivi -eq $c -or ($c.EndsWith("/") -and $suivi.StartsWith($c))) { $ignore = $true } }
         if (-not $ignore) { $erreurs += "Fichier non couvert par la mémoire : $suivi (l'ajouter à un 'couvre' ou à memoire/_ignore.txt)" }
@@ -140,13 +143,25 @@ if ($Verifier) {
         }
     }
 
-    # Péremption : un fichier de mémoire dont le dernier commit est plus ancien que celui du code qu'il couvre
+    # Péremption : le code couvert a été commité après la date 'verifie' du fichier de mémoire (au jour près).
+    # Repli, si 'verifie' est absent ou invalide : après le dernier commit du fichier de mémoire.
     foreach ($nom in $couvertParFichier.Keys) {
-        $dateMemoire = Date-Commit "memoire/$nom"
-        if ($dateMemoire -eq 0) { continue }
+        $verifie = $verifieParFichier[$nom]
+        if ($verifie -match '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$') {
+            $reference = $verifie
+            $origine = "verifie: $verifie"
+            $conseil = "Relire le fichier, puis mettre à jour 'verifie' dans son en-tête"
+        } else {
+            if ($verifie) { $avertissements += "memoire/$nom : 'verifie' invalide ('$verifie'), attendu AAAA-MM-JJ" }
+            $reference = Jour-Commit "memoire/$nom"
+            $origine = "sans 'verifie', dernier commit du fichier le $reference"
+            $conseil = "Relire le fichier, puis ajouter 'verifie: AAAA-MM-JJ' (date du jour) dans son en-tête"
+        }
+        if (-not $reference) { continue }
         foreach ($c in $couvertParFichier[$nom]) {
-            if ((Date-Commit $c) -gt $dateMemoire) {
-                $avertissements += "memoire/$nom est plus ancien que le code qu'il couvre ($c) : le relire, puis le committer même sans changement"
+            $jourCode = Jour-Commit $c
+            if ($jourCode -and $jourCode -gt $reference) {
+                $avertissements += "memoire/$nom ($origine) est plus ancien que le code qu'il couvre : $c modifié le $jourCode. $conseil"
             }
         }
     }
